@@ -44,5 +44,10 @@ public class EmailNotificacion extends Notificacion {
     public List<String> getAdjuntos() {
         return Collections.unmodifiableList(adjuntos);
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + " -> Email[destino=" + direccionDestinatario + ", asunto=" + asunto + "]";
+    }
 }
 

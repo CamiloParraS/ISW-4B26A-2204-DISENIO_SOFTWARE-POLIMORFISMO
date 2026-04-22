@@ -43,5 +43,10 @@ public class Usuario {
     public String getTokenDispositivo() {
         return tokenDispositivo;
     }
+
+    @Override
+    public String toString() {
+        return "Usuario[id=" + id + ", nombre=" + nombre + ", email=" + email + ", telefono=" + telefono + ", rol=" + rol + "]";
+    }
 }
 

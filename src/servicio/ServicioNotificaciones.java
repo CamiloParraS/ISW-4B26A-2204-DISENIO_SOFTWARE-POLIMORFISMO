@@ -1,6 +1,8 @@
 package servicio;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,8 +25,9 @@ public class ServicioNotificaciones {
         this.procesadorDestinatario = procesadorDestinatario;
     }
 
-    public void trigger(TipoNotificacion tipo, RolUsuario rolObjetivo,
+    public List<Notificacion> trigger(TipoNotificacion tipo, RolUsuario rolObjetivo,
             Map<String, String> placeholders) {
+        List<Notificacion> enviadas = new ArrayList<>();
         for (CanalNotificacion canal : CanalNotificacion.values()) {
             ConfigTipoNotificacion config =
                     new ConfigTipoNotificacion(tipo, canal, true, true);
@@ -43,8 +46,10 @@ public class ServicioNotificaciones {
                 Notificacion notificacion =
                         factory.crear(tipo, destinatario, plantilla, placeholders, config);
                 despachar(notificacion);
+                enviadas.add(notificacion);
             }
         }
+        return enviadas;
     }
 
     private void despachar(Notificacion notificacion) {

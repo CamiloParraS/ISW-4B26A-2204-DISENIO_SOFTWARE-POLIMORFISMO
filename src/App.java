@@ -1,16 +1,13 @@
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Scanner;
-
 import fabrica.NotificacionFactory;
 import modelo.ConfigTipoNotificacion;
-import modelo.EmailNotificacion;
 import modelo.Notificacion;
 import modelo.PlantillaNotificacion;
-import modelo.PushNotificacion;
-import modelo.SMSNotificacion;
 import modelo.Usuario;
 import modelo.enumeraciones.CanalNotificacion;
 import modelo.enumeraciones.RolUsuario;
@@ -22,199 +19,111 @@ import servicio.ServicioNotificaciones;
 public class App {
     public static void main(String[] args) {
         Scanner scanner = new Scanner(System.in);
-
-        // Sample data
         List<Usuario> usuarios = List.of(
-                new Usuario("u1", "Alice", "alice@example.com", "555-0101", RolUsuario.ESTUDIANTE,
-                        "token-1"),
-                new Usuario("u2", "Bob", "bob@example.com", "555-0202", RolUsuario.PROFESOR,
-                        "token-2"),
+                new Usuario("u1", "Alice", "alice@example.com", "555-0101", RolUsuario.ESTUDIANTE, "token-1"),
+                new Usuario("u2", "Bob", "bob@example.com", "555-0202", RolUsuario.PROFESOR, "token-2"),
                 new Usuario("u3", "Carol", "carol@example.com", "", RolUsuario.ADMIN, ""));
-
+        List<Notificacion> historial = new ArrayList<>();
         ProcesadorDestinatario procesador = new ProcesadorDestinatario(usuarios, List.of());
         MotorPlantilla motor = new MotorPlantilla();
         NotificacionFactory factory = new NotificacionFactory(motor);
         ServicioNotificaciones servicio = new ServicioNotificaciones(factory, procesador);
-
         boolean running = true;
         while (running) {
-            printMenu();
-            System.out.print("Seleccione una opcion: ");
-            String line = scanner.nextLine().trim();
-            switch (line) {
-                case "1" -> listUsers(usuarios);
+            System.out.println("\n--- MENU ---");
+            System.out.println("1. Listar usuarios");
+            System.out.println("2. Mostrar enums");
+            System.out.println("3. Trigger bulk");
+            System.out.println("4. Enviar manual");
+            System.out.println("5. Mostrar historial de enviadas");
+            System.out.println("6. Salir");
+            System.out.print("Opcion: ");
+            String op = scanner.nextLine().trim();
+            switch (op) {
+                case "1" -> usuarios.forEach(u -> System.out.println(u.toString()));
                 case "2" -> listEnums();
-                case "3" -> triggerBulk(scanner, servicio);
-                case "4" -> sendManual(scanner, factory, usuarios);
-                case "5" -> running = false;
-                default -> System.out.println("Opcion invalida, intente de nuevo.");
+                case "3" -> historial.addAll(triggerBulk(scanner, servicio));
+                case "4" -> {
+                    Notificacion n = sendManual(scanner, factory, usuarios);
+                    if (n != null) historial.add(n);
+                }
+                case "5" -> {
+                    System.out.println("Historial:");
+                    historial.forEach(n -> System.out.println(n.toString()));
+                }
+                case "6" -> running = false;
+                default -> System.out.println("Invalida");
             }
-            System.out.println();
         }
-
         scanner.close();
-        System.out.println("Saliendo...");
-    }
-
-    private static void printMenu() {
-        System.out.println("=== Menu de Notificaciones ===");
-        System.out.println("1) Listar usuarios de ejemplo");
-        System.out.println("2) Mostrar tipos y roles disponibles");
-        System.out.println("3) Trigger: enviar notificaciones por tipo y rol (bulk)");
-        System.out.println("4) Enviar notificacion manual a usuario especifico");
-        System.out.println("5) Salir");
-    }
-
-    private static void listUsers(List<Usuario> usuarios) {
-        System.out.println("Usuarios disponibles:");
-        for (Usuario u : usuarios) {
-            System.out.printf("- id=%s, nombre=%s, email=%s, telefono=%s, rol=%s, token=%s%n",
-                    u.getId(), u.getNombre(), u.getEmail(), u.getTelefono(), u.getRol(),
-                    u.getTokenDispositivo());
-        }
     }
 
     private static void listEnums() {
-        System.out.println("Tipos de notificacion:");
-        for (TipoNotificacion t : TipoNotificacion.values()) {
-            System.out.println("- " + t.name());
-        }
-        System.out.println("Roles de usuario:");
-        for (RolUsuario r : RolUsuario.values()) {
-            System.out.println("- " + r.name());
-        }
-        System.out.println("Canales disponibles (se usan internamente):");
-        for (CanalNotificacion c : CanalNotificacion.values()) {
-            System.out.println("- " + c.name());
+        System.out.println("Tipos:");
+        for (TipoNotificacion t : TipoNotificacion.values()) System.out.println("- " + t);
+        System.out.println("Roles:");
+        for (RolUsuario r : RolUsuario.values()) System.out.println("- " + r);
+        System.out.println("Canales:");
+        for (CanalNotificacion c : CanalNotificacion.values()) System.out.println("- " + c);
+    }
+
+    private static <T extends Enum<T>> T selectEnum(Scanner s, String t, Class<T> c) {
+        T[] vals = c.getEnumConstants();
+        System.out.println("Seleccione " + t + ":");
+        for (int i = 0; i < vals.length; i++) System.out.println((i + 1) + ". " + vals[i]);
+        while (true) {
+            try {
+                int ch = Integer.parseInt(s.nextLine().trim());
+                if (ch >= 1 && ch <= vals.length) return vals[ch - 1];
+            } catch (Exception e) {}
+            System.out.print("Invalido, reintente: ");
         }
     }
 
-    private static void triggerBulk(Scanner scanner, ServicioNotificaciones servicio) {
-        System.out.println("Selecciona el tipo de notificacion (por nombre):");
-        for (TipoNotificacion t : TipoNotificacion.values()) {
-            System.out.println("- " + t.name());
-        }
-        System.out.print("Tipo: ");
-        String tipoInput = scanner.nextLine().trim();
-        TipoNotificacion tipo;
-        try {
-            tipo = TipoNotificacion.valueOf(tipoInput);
-        } catch (Exception ex) {
-            System.out.println("Tipo invalido.");
-            return;
-        }
-
-        System.out.println("Selecciona rol objetivo (por nombre):");
-        for (RolUsuario r : RolUsuario.values()) {
-            System.out.println("- " + r.name());
-        }
-        System.out.print("Rol: ");
-        String rolInput = scanner.nextLine().trim();
-        RolUsuario rol;
-        try {
-            rol = RolUsuario.valueOf(rolInput);
-        } catch (Exception ex) {
-            System.out.println("Rol invalido.");
-            return;
-        }
-
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("name", "Usuario");
-        placeholders.put("type", tipo.name());
-        placeholders.put("timestamp", LocalDateTime.now().toString());
-
-        System.out.println("Enviando notificaciones (simulado) para tipo=" + tipo + " rol=" + rol);
-        servicio.trigger(tipo, rol, placeholders);
-        System.out.println("Trigger completado.");
+    private static List<Notificacion> triggerBulk(Scanner s, ServicioNotificaciones ser) {
+        TipoNotificacion t = selectEnum(s, "Tipo", TipoNotificacion.class);
+        RolUsuario r = selectEnum(s, "Rol", RolUsuario.class);
+        Map<String, String> p = new HashMap<>();
+        p.put("name", "Usuario");
+        p.put("type", t.name());
+        p.put("timestamp", LocalDateTime.now().toString());
+        List<Notificacion> res = ser.trigger(t, r, p);
+        System.out.println("Bulk enviado.");
+        return res;
     }
 
-    private static void sendManual(Scanner scanner, NotificacionFactory factory,
-            List<Usuario> usuarios) {
-        System.out.println("Enviar notificacion manual a usuario.");
-        System.out.println("Usuarios:");
-        for (Usuario u : usuarios) {
-            System.out.printf("- %s (%s)%n", u.getId(), u.getNombre());
+    private static Notificacion sendManual(Scanner s, NotificacionFactory f, List<Usuario> us) {
+        System.out.println("Seleccione usuario:");
+        for (int i = 0; i < us.size(); i++) System.out.println((i + 1) + ". " + us.get(i).getNombre());
+        Usuario u = null;
+        while (u == null) {
+            try {
+                int ch = Integer.parseInt(s.nextLine().trim());
+                if (ch >= 1 && ch <= us.size()) u = us.get(ch - 1);
+            } catch (Exception e) {}
+            if (u == null) System.out.print("Invalido: ");
         }
-        System.out.print("Id destinatario: ");
-        String id = scanner.nextLine().trim();
-        Usuario destino =
-                usuarios.stream().filter(u -> u.getId().equals(id)).findFirst().orElse(null);
-        if (destino == null) {
-            System.out.println("Usuario no encontrado.");
-            return;
-        }
-
-        System.out.println("Selecciona canal (EMAIL, SMS, PUSH): ");
-        String canalInput = scanner.nextLine().trim().toUpperCase();
-        CanalNotificacion canal;
+        CanalNotificacion c = selectEnum(s, "Canal", CanalNotificacion.class);
+        TipoNotificacion t = selectEnum(s, "Tipo", TipoNotificacion.class);
+        System.out.print("Asunto: ");
+        String as = s.nextLine();
+        System.out.print("Cuerpo: ");
+        String cu = s.nextLine();
+        PlantillaNotificacion pl = new PlantillaNotificacion(java.util.UUID.randomUUID().toString(), "MANUAL", c, as, cu);
+        Map<String, String> ph = new HashMap<>();
+        ph.put("name", u.getNombre());
+        ph.put("type", t.name());
+        ph.put("timestamp", LocalDateTime.now().toString());
+        Notificacion n = f.crear(t, u, pl, ph, new ConfigTipoNotificacion(t, c, true, true));
         try {
-            canal = CanalNotificacion.valueOf(canalInput);
-        } catch (Exception ex) {
-            System.out.println("Canal invalido.");
-            return;
+            n.enviar();
+            n.marcarEnviado(LocalDateTime.now());
+            System.out.println("Enviada");
+        } catch (Exception e) {
+            n.marcarFallido(e.getMessage());
+            System.out.println("Fallo: " + e.getMessage());
         }
-
-        System.out.println("Selecciona tipo de notificacion:");
-        for (TipoNotificacion t : TipoNotificacion.values())
-            System.out.println("- " + t.name());
-        System.out.print("Tipo: ");
-        String tipoInput = scanner.nextLine().trim();
-        TipoNotificacion tipo;
-        try {
-            tipo = TipoNotificacion.valueOf(tipoInput);
-        } catch (Exception ex) {
-            System.out.println("Tipo invalido.");
-            return;
-        }
-
-        System.out.print("Asunto (opcional): ");
-        String asunto = scanner.nextLine();
-        System.out.print("Cuerpo del mensaje: ");
-        String cuerpo = scanner.nextLine();
-
-        PlantillaNotificacion plantilla = new PlantillaNotificacion(
-                java.util.UUID.randomUUID().toString(), tipo.name() + "_PLANTILLA", canal,
-                asunto.isBlank() ? "Asunto" : asunto, cuerpo);
-
-        Map<String, String> placeholders = new HashMap<>();
-        placeholders.put("name", destino.getNombre());
-        placeholders.put("type", tipo.name());
-        placeholders.put("timestamp", LocalDateTime.now().toString());
-
-        ConfigTipoNotificacion config = new ConfigTipoNotificacion(tipo, canal, true, true);
-        Notificacion notificacion = factory.crear(tipo, destino, plantilla, placeholders, config);
-
-        System.out.println("Intentando enviar notificacion...");
-        try {
-            notificacion.enviar();
-            notificacion.marcarEnviado(LocalDateTime.now());
-            System.out.println("Enviada correctamente.");
-        } catch (RuntimeException ex) {
-            notificacion.marcarFallido(ex.getMessage());
-            System.out.println("Fallo al enviar: " + ex.getMessage());
-        }
-
-        printNotificacionDetails(notificacion);
-    }
-
-    private static void printNotificacionDetails(Notificacion n) {
-        System.out.println("--- Detalles de la notificacion ---");
-        System.out.println("Id: " + n.getId());
-        System.out.println("Tipo: " + n.getTipoNotificacion());
-        System.out.println("DestinatarioId: " + n.getIdDestinatario());
-        System.out.println("Estado: " + n.getEstado());
-        System.out.println("Mensaje: " + n.getMensaje());
-        System.out.println("Intentos: " + n.getContadorIntento());
-
-        if (n instanceof EmailNotificacion email) {
-            System.out.println("Email -> direccion: " + email.getDireccionDestinatario());
-            System.out.println("Asunto: " + email.getAsunto());
-        } else if (n instanceof SMSNotificacion sms) {
-            System.out.println("SMS -> numero: " + sms.getNumeroTelefono());
-            System.out.println("Proveedor: " + sms.getProveedor());
-        } else if (n instanceof PushNotificacion push) {
-            System.out.println("Push -> token: " + push.getTokenDispositivo());
-            System.out.println("Plataforma: " + push.getPlataforma());
-        }
+        System.out.println(n.toString());
+        return n;
     }
 }

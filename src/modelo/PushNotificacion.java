@@ -40,5 +40,10 @@ public class PushNotificacion extends Notificacion {
     public String getIconUrl() {
         return iconUrl;
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + " -> Push[token=" + tokenDispositivo + ", plataforma=" + plataforma + "]";
+    }
 }
 

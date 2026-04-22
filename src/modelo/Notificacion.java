@@ -67,5 +67,10 @@ public abstract class Notificacion {
     public boolean puedeReintentar(int maximosReintentos) {
         return contadorIntento < maximosReintentos;
     }
+
+    @Override
+    public String toString() {
+        return "Notificacion[codigo=" + codigo + ", tipo=" + tipo + ", destinatario=" + idDestinatario + ", estado=" + estado + "]";
+    }
 }
 

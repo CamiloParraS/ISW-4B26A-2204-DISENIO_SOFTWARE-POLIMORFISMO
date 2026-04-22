@@ -33,5 +33,10 @@ public class SMSNotificacion extends Notificacion {
     public String getProveedor() {
         return proveedor;
     }
+
+    @Override
+    public String toString() {
+        return super.toString() + " -> SMS[telefono=" + numeroTelefono + ", proveedor=" + proveedor + "]";
+    }
 }
 
